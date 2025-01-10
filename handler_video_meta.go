@@ -2,7 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/database"
@@ -95,6 +98,11 @@ func (cfg *apiConfig) handlerVideoGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// video, err = cfg.dbVideoToSignedVideo(video)
+	// if err != nil {
+	// 	respondWithError(w, http.StatusInternalServerError, "Couldn't get signed video", err)
+	// 	return
+	// }
 	respondWithJSON(w, http.StatusOK, video)
 }
 
@@ -116,5 +124,36 @@ func (cfg *apiConfig) handlerVideosRetrieve(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// for i, video := range videos {
+	// 	video, err = cfg.dbVideoToSignedVideo(video)
+	// 	if err != nil {
+	// 		respondWithError(w, http.StatusInternalServerError, "Couldn't get signed video", err)
+	// 		return
+	// 	}
+	// 	videos[i] = video
+	// }
 	respondWithJSON(w, http.StatusOK, videos)
+}
+
+/**
+ * This function is used to get the signed URL of the video
+ */
+func (cfg *apiConfig) dbVideoToSignedVideo(video database.Video) (database.Video, error) {
+
+	if video.VideoURL == nil {
+		return video, nil
+	}
+	part := strings.Split(*video.VideoURL, ",")
+	if len(part) != 2 {
+		return video, fmt.Errorf("Invalid video URL")
+	}
+
+	newUrl, err := generatePresignedURL(cfg.s3Client, part[0], part[1], time.Hour)
+	if err != nil {
+		return video, err
+	}
+
+	video.VideoURL = &newUrl
+
+	return video, nil
 }
